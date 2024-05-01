@@ -159,7 +159,7 @@ fn compute_neighbors<'a>(
 
             if let Some(neighbor) = available_words.get(owned_word.as_slice()) {
                 neighbors.insert(*neighbor);
-            };
+            }
 
             owned_word[idx] = original_letter;
         }
