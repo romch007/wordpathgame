@@ -1,13 +1,13 @@
 use anyhow::anyhow;
+use clap::Parser;
+use hashbrown::{HashMap, HashSet};
 use memmap::MmapOptions;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::VecDeque,
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
 };
-
-use clap::Parser;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
