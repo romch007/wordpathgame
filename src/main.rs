@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use memmap::MmapOptions;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fs::{File, OpenOptions},
@@ -23,16 +24,9 @@ enum Command {
         /// Output path
         extracted_words: PathBuf,
     },
-    /// Generate a dictionnary from a list of words of equal length
-    GenerateDict {
-        /// List of words
-        words: PathBuf,
-        /// Output path
-        dict: PathBuf,
-    },
-    /// Find a path across two words from a dictionnary
+    /// Find a path across two words
     FindPath {
-        dict: PathBuf,
+        words: PathBuf,
         start_word: String,
         end_word: String,
     },
@@ -65,101 +59,26 @@ fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Re
     Ok(())
 }
 
-fn generate_dict(words: &Path, dict: &Path) -> anyhow::Result<()> {
-    let available_words = File::open(words)?;
-    let mut reader = BufReader::new(available_words);
+type Word<'a> = &'a [u8];
+type WordList<'a> = HashSet<Word<'a>>;
+type Dictionnary<'a> = HashMap<Word<'a>, WordList<'a>>;
 
-    let mut available_words = HashSet::new();
-    let mut buf = vec![];
+fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()> {
+    // read the words
+    let words = File::open(words)?;
+    let words = unsafe { MmapOptions::new().map(&words)? };
+    let words = words.split(|&b| b == b'\n').collect::<WordList>();
 
-    loop {
-        let nread = reader.read_until(b'\n', &mut buf)?;
+    println!("{} words were loaded", words.len());
 
-        if nread == 0 {
-            break;
-        }
+    // generate the dictionnary
+    let mut dict = Dictionnary::new();
 
-        let word = &buf[0..nread - 1];
-
-        available_words.insert(word.to_owned());
-        buf.clear();
+    for word in &words {
+        compute_neighbors(word, &words, &mut dict)?;
     }
 
-    println!("{} words were read", available_words.len());
-
-    let dict = OpenOptions::new()
-        .read(false)
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(dict)?;
-
-    let mut writer = BufWriter::new(dict);
-
-    for word in &available_words {
-        compute_neighbors(word, &available_words, &mut writer)?;
-    }
-
-    Ok(())
-}
-
-fn compute_neighbors(
-    word: &[u8],
-    available_words: &HashSet<Vec<u8>>,
-    mut dict: impl Write,
-) -> anyhow::Result<()> {
-    dict.write_all(word)?;
-
-    let mut word = word.to_owned();
-
-    for idx in 0..word.len() {
-        for &letter in ALPHA {
-            let original_letter = word[idx];
-
-            if original_letter == letter {
-                continue;
-            }
-
-            word[idx] = letter;
-
-            if available_words.contains(&word) {
-                dict.write_all(&[b' '])?;
-                dict.write_all(&word)?;
-            }
-
-            word[idx] = original_letter;
-        }
-    }
-
-    dict.write_all(&[b'\n'])?;
-
-    Ok(())
-}
-
-fn find_path(dict: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()> {
-    let dict = File::open(dict)?;
-    let mut reader = BufReader::new(dict);
-
-    // load the dictionary
-    let mut dict = HashMap::new();
-    let mut buf = vec![];
-
-    loop {
-        let nread = reader.read_until(b'\n', &mut buf)?;
-
-        if nread == 0 {
-            break;
-        }
-
-        let line = &buf[0..nread - 1];
-        let mut parts = line.split(|&b| b == b' ');
-
-        let word = parts.next().ok_or(anyhow!("empty line???"))?.to_owned();
-        let neighbors = parts.map(|word| word.to_owned()).collect::<HashSet<_>>();
-
-        dict.insert(word, neighbors);
-        buf.clear();
-    }
+    std::mem::drop(words);
 
     // find the path
     let start_word = start_word.as_bytes();
@@ -182,7 +101,7 @@ fn find_path(dict: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()
     let mut used = HashMap::new();
     let mut previous = HashMap::new();
     used.insert(start_word, true);
-    previous.insert(start_word, &[] as &[u8]);
+    previous.insert(start_word, &[] as Word);
 
     while !path.is_empty() {
         let current_word = path.pop_front().ok_or(anyhow!("path was empty???"))?;
@@ -192,7 +111,6 @@ fn find_path(dict: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()
             .ok_or(anyhow!("value not in dict???"))?;
 
         for neighbor in neighbors {
-            let neighbor = neighbor.as_slice();
             if !*used.get(neighbor).unwrap_or(&false) {
                 used.insert(neighbor, true);
                 path.push_back(neighbor);
@@ -221,6 +139,37 @@ fn find_path(dict: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()
     Ok(())
 }
 
+fn compute_neighbors<'a>(
+    word: Word<'a>,
+    available_words: &WordList<'a>,
+    dict: &mut Dictionnary<'a>,
+) -> anyhow::Result<()> {
+    let mut neighbors = WordList::new();
+    let mut owned_word = word.to_owned();
+
+    for idx in 0..owned_word.len() {
+        for &letter in ALPHA {
+            let original_letter = owned_word[idx];
+
+            if original_letter == letter {
+                continue;
+            }
+
+            owned_word[idx] = letter;
+
+            if let Some(neighbor) = available_words.get(owned_word.as_slice()) {
+                neighbors.insert(*neighbor);
+            };
+
+            owned_word[idx] = original_letter;
+        }
+    }
+
+    dict.insert(word, neighbors);
+
+    Ok(())
+}
+
 fn main() {
     let command = Command::parse();
 
@@ -230,11 +179,10 @@ fn main() {
             words,
             extracted_words,
         } => extract_words(&words, &extracted_words, len).unwrap(),
-        Command::GenerateDict { words, dict } => generate_dict(&words, &dict).unwrap(),
         Command::FindPath {
-            dict,
+            words,
             start_word,
             end_word,
-        } => find_path(&dict, &start_word, &end_word).unwrap(),
+        } => find_path(&words, &start_word, &end_word).unwrap(),
     };
 }
