@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use hashbrown::{HashMap, HashSet};
 use memmap::MmapOptions;
+use smallvec::SmallVec;
 use std::{
     collections::VecDeque,
     fs::{File, OpenOptions},
@@ -145,7 +146,7 @@ fn compute_neighbors<'a>(
     dict: &mut Dictionnary<'a>,
 ) -> anyhow::Result<()> {
     let mut neighbors = WordList::new();
-    let mut owned_word = word.to_owned();
+    let mut owned_word = SmallVec::<[u8; 10]>::from_slice(word);
 
     for idx in 0..owned_word.len() {
         for &letter in ALPHA {
