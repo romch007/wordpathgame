@@ -96,13 +96,10 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
         }
     }
 
-    let mut path = VecDeque::with_capacity(1);
-    path.push_back(start_word);
+    let mut path = VecDeque::from([start_word]);
+    let mut used = WordList::from([start_word]);
 
-    let mut used = WordList::with_capacity(1);
-    used.insert(start_word);
-
-    let mut previous = HashMap::new();
+    let mut previous = HashMap::with_capacity(1);
     previous.insert(start_word, &[] as Word);
 
     while !path.is_empty() {
