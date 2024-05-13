@@ -99,9 +99,10 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     let mut path = VecDeque::with_capacity(1);
     path.push_back(start_word);
 
-    let mut used = HashMap::new();
+    let mut used = WordList::with_capacity(1);
+    used.insert(start_word);
+
     let mut previous = HashMap::new();
-    used.insert(start_word, true);
     previous.insert(start_word, &[] as Word);
 
     while !path.is_empty() {
@@ -112,15 +113,15 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
             .ok_or(anyhow!("value not in dict???"))?;
 
         for neighbor in neighbors {
-            if !*used.get(neighbor).unwrap_or(&false) {
-                used.insert(neighbor, true);
+            if !used.contains(neighbor) {
+                used.insert(neighbor);
                 path.push_back(neighbor);
                 previous.insert(neighbor, current_word);
             }
         }
     }
 
-    if !used[end_word] {
+    if !used.contains(end_word) {
         println!("no path found");
     } else {
         let mut value = end_word;
