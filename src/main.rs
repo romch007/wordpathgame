@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use clap::Parser;
 use hashbrown::{HashMap, HashSet};
-use memmap::MmapOptions;
+use memmap2::MmapOptions;
 use smallvec::SmallVec;
 use std::{
     collections::VecDeque,
