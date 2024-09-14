@@ -89,7 +89,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
         if !dict.contains_key(word) {
             println!(
                 "'{}' is not in the dictionnary",
-                std::str::from_utf8(start_word)?
+                std::str::from_utf8(word)?
             );
 
             return Ok(());
