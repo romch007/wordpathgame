@@ -53,7 +53,7 @@ fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Re
 
         if line.len() == len {
             writer.write_all(line.as_bytes())?;
-            writer.write_all(&[b'\n'])?;
+            writer.write_all(b"\n")?;
         }
     }
 
@@ -87,10 +87,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
 
     for word in [start_word, end_word] {
         if !dict.contains_key(word) {
-            println!(
-                "'{}' is not in the dictionnary",
-                std::str::from_utf8(word)?
-            );
+            println!("'{}' is not in the dictionnary", std::str::from_utf8(word)?);
 
             return Ok(());
         }
