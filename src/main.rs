@@ -32,7 +32,7 @@ enum Command {
     },
 }
 
-const ALPHA: &[u8] = "abcdefghijklmnopqrstuvwxyz".as_bytes();
+const ALPHA: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
 
 fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Result<()> {
     let words = File::open(words)?;
