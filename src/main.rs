@@ -2,7 +2,6 @@ use anyhow::anyhow;
 use clap::Parser;
 use hashbrown::{HashMap, HashSet};
 use memmap2::MmapOptions;
-use smallvec::SmallVec;
 use std::{
     collections::VecDeque,
     fs::{File, OpenOptions},
@@ -69,14 +68,14 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     let words = File::open(words)?;
     let words = unsafe { MmapOptions::new().map(&words)? };
     let words = words.split(|&b| b == b'\n').collect::<WordList>();
-
     println!("{} words were loaded", words.len());
 
     // generate the dictionnary
     let mut dict = Dictionnary::new();
+    let mut buf = Vec::with_capacity(start_word.len());
 
     for word in &words {
-        compute_neighbors(word, &words, &mut dict)?;
+        compute_neighbors(word, &words, &mut dict, &mut buf)?;
     }
 
     std::mem::drop(words);
@@ -139,25 +138,28 @@ fn compute_neighbors<'a>(
     word: Word<'a>,
     available_words: &WordList<'a>,
     dict: &mut Dictionnary<'a>,
+    buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
     let mut neighbors = WordList::new();
-    let mut owned_word = SmallVec::<[u8; 10]>::from_slice(word);
 
-    for idx in 0..owned_word.len() {
+    buf.clear();
+    buf.extend_from_slice(word);
+
+    for idx in 0..buf.len() {
         for &letter in ALPHA {
-            let original_letter = owned_word[idx];
+            let original_letter = buf[idx];
 
             if original_letter == letter {
                 continue;
             }
 
-            owned_word[idx] = letter;
+            buf[idx] = letter;
 
-            if let Some(neighbor) = available_words.get(owned_word.as_slice()) {
+            if let Some(neighbor) = available_words.get(buf.as_slice()) {
                 neighbors.insert(*neighbor);
             }
 
-            owned_word[idx] = original_letter;
+            buf[idx] = original_letter;
         }
     }
 
