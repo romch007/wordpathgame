@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use clap::Parser;
 use hashbrown::{HashMap, HashSet};
 use memmap2::MmapOptions;
@@ -67,12 +67,32 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     // read the words
     let words = File::open(words)?;
     let words = unsafe { MmapOptions::new().map(&words)? };
-    let words = words.split(|&b| b == b'\n').collect::<WordList>();
+    let words = words
+        .split(|&b| b == b'\n')
+        .map(|word| {
+            if word.is_ascii() {
+                Ok(word)
+            } else {
+                Err(anyhow!("dictionnary contains invalid ASCII"))
+            }
+        })
+        .collect::<Result<WordList, _>>()?;
+
+    let words_len = if let Some(word) = words.iter().next() {
+        word.len()
+    } else {
+        bail!("no word in dictionnary")
+    };
+
+    if !words.iter().all(|word| word.len() == words_len) {
+        bail!("dictionnary contains words of different lengths");
+    }
+
     println!("{} words were loaded", words.len());
 
     // generate the dictionnary
     let mut dict = Dictionnary::new();
-    let mut buf = Vec::with_capacity(start_word.len());
+    let mut buf = Vec::with_capacity(words_len);
 
     for word in &words {
         compute_neighbors(word, &words, &mut dict, &mut buf)?;
