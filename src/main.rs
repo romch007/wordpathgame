@@ -98,7 +98,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
         compute_neighbors(word, &words, &mut dict, &mut buf)?;
     }
 
-    std::mem::drop(words);
+    drop(words);
 
     // find the path
     let start_word = start_word.as_bytes();
