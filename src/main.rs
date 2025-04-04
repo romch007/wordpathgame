@@ -69,6 +69,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     let words = unsafe { MmapOptions::new().map(&words)? };
     let words = words
         .split(|&b| b == b'\n')
+        .filter(|word| !word.is_empty())
         .map(|word| {
             if word.is_ascii() {
                 Ok(word)
@@ -84,8 +85,13 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
         bail!("no word in dictionnary")
     };
 
-    if !words.iter().all(|word| word.len() == words_len) {
-        bail!("dictionnary contains words of different lengths");
+    for word in words.iter() {
+        if word.len() != words_len {
+            bail!(
+                "dictionnary contains words of different lengths, offending word: '{}'",
+                std::str::from_utf8(word)?
+            );
+        }
     }
 
     println!("{} words were loaded", words.len());
