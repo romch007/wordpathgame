@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail};
 use clap::Parser;
-use hashbrown::{HashMap, HashSet};
+use fnv::{FnvHashMap, FnvHashSet};
 use memmap2::MmapOptions;
 use std::{
     collections::VecDeque,
@@ -60,8 +60,8 @@ fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Re
 }
 
 type Word<'a> = &'a [u8];
-type WordList<'a> = HashSet<Word<'a>>;
-type Dictionnary<'a> = HashMap<Word<'a>, WordList<'a>>;
+type WordList<'a> = FnvHashSet<Word<'a>>;
+type Dictionnary<'a> = FnvHashMap<Word<'a>, WordList<'a>>;
 
 fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()> {
     // read the words
@@ -97,7 +97,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     println!("{} words were loaded", words.len());
 
     // generate the dictionnary
-    let mut dict = Dictionnary::new();
+    let mut dict = Dictionnary::default();
     let mut buf = Vec::with_capacity(words_len);
 
     for word in &words {
@@ -119,9 +119,10 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     }
 
     let mut path = VecDeque::from([start_word]);
-    let mut used = WordList::from([start_word]);
+    let mut used = WordList::with_capacity_and_hasher(1, Default::default());
+    used.insert(start_word);
 
-    let mut previous = HashMap::with_capacity(1);
+    let mut previous = FnvHashMap::with_capacity_and_hasher(1, Default::default());
     previous.insert(start_word, &[] as Word);
 
     while !path.is_empty() {
@@ -166,7 +167,7 @@ fn compute_neighbors<'a>(
     dict: &mut Dictionnary<'a>,
     buf: &mut Vec<u8>,
 ) -> anyhow::Result<()> {
-    let mut neighbors = WordList::new();
+    let mut neighbors = WordList::default();
 
     buf.clear();
     buf.extend_from_slice(word);
