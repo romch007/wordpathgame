@@ -123,7 +123,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     used.insert(start_word);
 
     let mut previous = FnvHashMap::with_capacity_and_hasher(1, Default::default());
-    previous.insert(start_word, &[] as Word);
+    previous.insert(start_word, Word::default());
 
     while !path.is_empty() {
         let current_word = path.pop_front().ok_or(anyhow!("path was empty???"))?;
