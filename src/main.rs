@@ -85,7 +85,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
         bail!("no word in dictionnary")
     };
 
-    for word in words.iter() {
+    for word in &words {
         if word.len() != words_len {
             bail!(
                 "dictionnary contains words of different lengths, offending word: '{}'",
@@ -141,9 +141,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
         }
     }
 
-    if !used.contains(end_word) {
-        println!("no path found");
-    } else {
+    if used.contains(end_word) {
         let mut value = end_word;
         let mut reverse_path = Vec::new();
         while !value.is_empty() {
@@ -156,6 +154,8 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
             let part_str = std::str::from_utf8(part)?;
             println!("  - {part_str}");
         }
+    } else {
+        println!("no path found");
     }
 
     Ok(())
