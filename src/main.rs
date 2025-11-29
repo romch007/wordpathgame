@@ -101,7 +101,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     let mut buf = Vec::with_capacity(words_len);
 
     for word in &words {
-        compute_neighbors(word, &words, &mut dict, &mut buf)?;
+        compute_neighbors(word, &words, &mut dict, &mut buf);
     }
 
     drop(words);
@@ -166,7 +166,7 @@ fn compute_neighbors<'a>(
     available_words: &WordList<'a>,
     dict: &mut Dictionnary<'a>,
     buf: &mut Vec<u8>,
-) -> anyhow::Result<()> {
+) {
     let mut neighbors = WordList::default();
 
     buf.clear();
@@ -191,8 +191,6 @@ fn compute_neighbors<'a>(
     }
 
     dict.insert(word, neighbors);
-
-    Ok(())
 }
 
 fn main() {
