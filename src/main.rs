@@ -61,7 +61,7 @@ fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Re
 
 type Word<'a> = &'a [u8];
 type WordList<'a> = FnvHashSet<Word<'a>>;
-type Dictionnary<'a> = FnvHashMap<Word<'a>, WordList<'a>>;
+type Dictionary<'a> = FnvHashMap<Word<'a>, WordList<'a>>;
 
 fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()> {
     // read the words
@@ -74,7 +74,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
             if word.is_ascii() {
                 Ok(word)
             } else {
-                Err(anyhow!("dictionnary contains invalid ASCII"))
+                Err(anyhow!("dictionary contains invalid ASCII"))
             }
         })
         .collect::<Result<WordList, _>>()?;
@@ -82,13 +82,13 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     let words_len = if let Some(word) = words.iter().next() {
         word.len()
     } else {
-        bail!("no word in dictionnary")
+        bail!("no word in dictionary")
     };
 
     for word in &words {
         if word.len() != words_len {
             bail!(
-                "dictionnary contains words of different lengths, offending word: '{}'",
+                "dictionary contains words of different lengths, offending word: '{}'",
                 std::str::from_utf8(word)?
             );
         }
@@ -96,8 +96,8 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
 
     println!("{} words were loaded", words.len());
 
-    // generate the dictionnary
-    let mut dict = Dictionnary::default();
+    // generate the dictionary
+    let mut dict = Dictionary::default();
     let mut buf = Vec::with_capacity(words_len);
 
     for word in &words {
@@ -112,7 +112,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
 
     for word in [start_word, end_word] {
         if !dict.contains_key(word) {
-            println!("'{}' is not in the dictionnary", std::str::from_utf8(word)?);
+            println!("'{}' is not in the dictionary", std::str::from_utf8(word)?);
 
             return Ok(());
         }
@@ -164,7 +164,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
 fn compute_neighbors<'a>(
     word: Word<'a>,
     available_words: &WordList<'a>,
-    dict: &mut Dictionnary<'a>,
+    dict: &mut Dictionary<'a>,
     buf: &mut Vec<u8>,
 ) {
     let mut neighbors = WordList::default();
