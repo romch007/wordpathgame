@@ -97,7 +97,7 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     println!("{} words were loaded", words.len());
 
     // generate the dictionary
-    let mut dict = Dictionary::default();
+    let mut dict = Dictionary::with_capacity_and_hasher(words.len(), Default::default());
     let mut buf = Vec::with_capacity(words_len);
 
     for word in &words {
