@@ -61,7 +61,7 @@ fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Re
 
 type Word<'a> = &'a [u8];
 type WordList<'a> = FnvHashSet<Word<'a>>;
-type Dictionary<'a> = FnvHashMap<Word<'a>, WordList<'a>>;
+type Dictionary<'a> = FnvHashMap<Word<'a>, Vec<Word<'a>>>;
 
 fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()> {
     // read the words
@@ -119,10 +119,10 @@ fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<(
     }
 
     let mut path = VecDeque::from([start_word]);
-    let mut used = WordList::with_capacity_and_hasher(1, Default::default());
+    let mut used = WordList::with_capacity_and_hasher(dict.len(), Default::default());
     used.insert(start_word);
 
-    let mut previous = FnvHashMap::with_capacity_and_hasher(1, Default::default());
+    let mut previous = FnvHashMap::with_capacity_and_hasher(dict.len(), Default::default());
     previous.insert(start_word, Word::default());
 
     while !path.is_empty() {
@@ -167,7 +167,7 @@ fn compute_neighbors<'a>(
     dict: &mut Dictionary<'a>,
     buf: &mut Vec<u8>,
 ) {
-    let mut neighbors = WordList::default();
+    let mut neighbors = Vec::new();
 
     buf.clear();
     buf.extend_from_slice(word);
@@ -183,7 +183,7 @@ fn compute_neighbors<'a>(
             buf[idx] = letter;
 
             if let Some(neighbor) = available_words.get(buf.as_slice()) {
-                neighbors.insert(*neighbor);
+                neighbors.push(*neighbor);
             }
 
             buf[idx] = original_letter;
