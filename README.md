@@ -23,6 +23,21 @@ Find the best path between two words:
 target/release/wordpathgame find-path words5.txt board phone
 ```
 
+## Benchmarks
+
+Run the [Criterion](https://crates.io/crates/criterion) benchmarks (dictionary parsing, path search, and both) on the 5-letter words of `words.txt`:
+```
+cargo bench
+```
+
+Reports are written to `target/criterion/report/index.html`.
+
 ## Notes
 
-This implementation was designed with an english dictionary in mind, so only ASCII words are supported.
+This implementation was designed with an english dictionary in mind. The dictionary given to `find-path` must follow these rules:
+
+- one word per line, with LF or CRLF line endings (empty lines are ignored);
+- only lowercase letters `a` to `z`: no uppercase, accents, digits, apostrophes or hyphens;
+- all words have the same length, at most 12 letters (each word is packed into a 64-bit integer, 5 bits per letter).
+
+`find-path` stops with an error naming the first word that breaks a rule. The start and end words must follow the same rules, otherwise they are reported as not in the dictionary.

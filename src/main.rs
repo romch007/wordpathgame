@@ -1,13 +1,10 @@
-use anyhow::{anyhow, bail};
 use clap::Parser;
-use fnv::{FnvHashMap, FnvHashSet};
-use memmap2::MmapOptions;
 use std::{
-    collections::VecDeque,
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
 };
+use wordpathgame::{Dictionary, PathResult};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -31,8 +28,6 @@ enum Command {
         end_word: String,
     },
 }
-
-const ALPHA: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
 
 fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Result<()> {
     let words = File::open(words)?;
@@ -59,138 +54,23 @@ fn extract_words(words: &Path, extracted_words: &Path, len: usize) -> anyhow::Re
     Ok(())
 }
 
-type Word<'a> = &'a [u8];
-type WordList<'a> = FnvHashSet<Word<'a>>;
-type Dictionary<'a> = FnvHashMap<Word<'a>, Vec<Word<'a>>>;
-
 fn find_path(words: &Path, start_word: &str, end_word: &str) -> anyhow::Result<()> {
-    // read the words
-    let words = File::open(words)?;
-    let words = unsafe { MmapOptions::new().map(&words)? };
-    let words = words
-        .split(|&b| b == b'\n')
-        .filter(|word| !word.is_empty())
-        .map(|word| {
-            if word.is_ascii() {
-                Ok(word)
-            } else {
-                Err(anyhow!("dictionary contains invalid ASCII"))
-            }
-        })
-        .collect::<Result<WordList, _>>()?;
+    let dict = Dictionary::parse(&std::fs::read(words)?)?;
 
-    let words_len = if let Some(word) = words.iter().next() {
-        word.len()
-    } else {
-        bail!("no word in dictionary")
-    };
+    println!("{} words were loaded", dict.len());
 
-    for word in &words {
-        if word.len() != words_len {
-            bail!(
-                "dictionary contains words of different lengths, offending word: '{}'",
-                std::str::from_utf8(word)?
-            );
-        }
-    }
-
-    println!("{} words were loaded", words.len());
-
-    // generate the dictionary
-    let mut dict = Dictionary::with_capacity_and_hasher(words.len(), Default::default());
-    let mut buf = Vec::with_capacity(words_len);
-
-    for word in &words {
-        compute_neighbors(word, &words, &mut dict, &mut buf);
-    }
-
-    drop(words);
-
-    // find the path
-    let start_word = start_word.as_bytes();
-    let end_word = end_word.as_bytes();
-
-    for word in [start_word, end_word] {
-        if !dict.contains_key(word) {
-            println!("'{}' is not in the dictionary", std::str::from_utf8(word)?);
-
-            return Ok(());
-        }
-    }
-
-    let mut path = VecDeque::from([start_word]);
-    let mut used = WordList::with_capacity_and_hasher(dict.len(), Default::default());
-    used.insert(start_word);
-
-    let mut previous = FnvHashMap::with_capacity_and_hasher(dict.len(), Default::default());
-    previous.insert(start_word, Word::default());
-
-    while !path.is_empty() {
-        let current_word = path.pop_front().ok_or(anyhow!("path was empty???"))?;
-
-        let neighbors = dict
-            .get(current_word)
-            .ok_or(anyhow!("value not in dict???"))?;
-
-        for neighbor in neighbors {
-            if !used.contains(neighbor) {
-                used.insert(neighbor);
-                path.push_back(neighbor);
-                previous.insert(neighbor, current_word);
+    match dict.find_path(start_word, end_word) {
+        PathResult::Found(path) => {
+            println!("found path:");
+            for word in path {
+                println!("  - {word}");
             }
         }
-    }
-
-    if used.contains(end_word) {
-        let mut value = end_word;
-        let mut reverse_path = Vec::new();
-        while !value.is_empty() {
-            reverse_path.push(value);
-            value = previous[value];
-        }
-
-        println!("found path:");
-        for part in reverse_path.into_iter().rev() {
-            let part_str = std::str::from_utf8(part)?;
-            println!("  - {part_str}");
-        }
-    } else {
-        println!("no path found");
+        PathResult::NoPath => println!("no path found"),
+        PathResult::NotInDictionary(word) => println!("'{word}' is not in the dictionary"),
     }
 
     Ok(())
-}
-
-fn compute_neighbors<'a>(
-    word: Word<'a>,
-    available_words: &WordList<'a>,
-    dict: &mut Dictionary<'a>,
-    buf: &mut Vec<u8>,
-) {
-    let mut neighbors = Vec::new();
-
-    buf.clear();
-    buf.extend_from_slice(word);
-
-    for idx in 0..buf.len() {
-        for &letter in ALPHA {
-            let original_letter = buf[idx];
-
-            if original_letter == letter {
-                continue;
-            }
-
-            buf[idx] = letter;
-
-            if let Some(neighbor) = available_words.get(buf.as_slice()) {
-                neighbors.push(*neighbor);
-            }
-
-            buf[idx] = original_letter;
-        }
-    }
-
-    dict.insert(word, neighbors);
 }
 
 fn main() {

@@ -15,4 +15,10 @@ debug = true
 anyhow = "1.0.82"
 clap = { version = "4.5.4", features = ["derive"] }
 fnv = "1.0.7"
-memmap2 = "0.9.4"
+
+[dev-dependencies]
+criterion = "0.8.2"
+
+[[bench]]
+name = "find_path"
+harness = false
